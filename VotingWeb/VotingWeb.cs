@@ -16,6 +16,7 @@ namespace VotingWeb
     using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
     using Microsoft.ServiceFabric.Services.Communication.Runtime;
     using Microsoft.ServiceFabric.Services.Runtime;
+    using Microsoft.Extensions.Hosting;
 
     /// <summary>
     /// The FabricRuntime creates an instance of this class for each service type instance. 
@@ -44,23 +45,26 @@ namespace VotingWeb
                             {
                                 ServiceEventSource.Current.ServiceMessage(serviceContext, $"Starting Kestrel on {url}");
 
-                                return new WebHostBuilder()
-                                    .UseKestrel()
-                                    .ConfigureLogging(logging =>
-                                    {
-                                        logging.ClearProviders();
-                                        logging.AddApplicationInsights();
-                                    })
-                                    .ConfigureServices(
-                                        services => services
-                                            .AddSingleton<HttpClient>(new HttpClient())
-                                            .AddSingleton<FabricClient>(new FabricClient())
-                                            .AddSingleton<StatelessServiceContext>(serviceContext))
-                                    .UseContentRoot(Directory.GetCurrentDirectory())
-                                    .UseStartup<Startup>()
-                                    .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
-                                    .UseUrls(url)
-                                    .Build();
+                                return Host.CreateDefaultBuilder()
+                                        .ConfigureWebHostDefaults(webBuilder =>
+                                        {
+                                            webBuilder.UseKestrel()
+                                                .UseStartup<Startup>()
+                                                .UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.None)
+                                                .UseContentRoot(Directory.GetCurrentDirectory())
+                                                .UseUrls(url);
+                                        })
+                                        .ConfigureLogging(logging =>
+                                        {
+                                            logging.ClearProviders();
+                                            logging.AddApplicationInsights();
+                                        })
+                                        .ConfigureServices(
+                                            services => services
+                                                .AddSingleton<HttpClient>(new HttpClient())
+                                                .AddSingleton<FabricClient>(new FabricClient())
+                                                .AddSingleton<StatelessServiceContext>(serviceContext))
+                                        .Build();
                             }))
             };
         }
